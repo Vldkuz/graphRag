@@ -4,6 +4,7 @@ import json
 from collections.abc import Callable
 
 from assistant.agent.tools import TOOL_SCHEMAS
+from assistant.infra.erp_client import ErpUnavailable
 from assistant.infra.grounding import find_codes, normalize_code
 from assistant.infra.llm import LLMClient, tool_message
 from assistant.infra.schemas import AgentResult, ToolStep
@@ -58,15 +59,26 @@ def run_agent(
                 step = ToolStep(tool=call.name, args=call.arguments, error=observation["error"])
             else:
                 key = (call.name, json.dumps(call.arguments, sort_keys=True))
-                if key not in cache:
-                    cache[key] = tools[call.name](**call.arguments)
-                result = cache[key]
-                known.update(find_codes(json.dumps(result, ensure_ascii=False)))
-                observation = result
-                step = ToolStep(tool=call.name, args=call.arguments, result=result)
-                for source in result.get("sources", []):
-                    if source not in sources:
-                        sources.append(source)
+                result, error = cache.get(key), None
+                if result is None:
+                    for _ in range(3):
+                        try:
+                            result = tools[call.name](**call.arguments)
+                            break
+                        except ErpUnavailable as exc:
+                            error = str(exc)
+                    if result is not None:
+                        cache[key] = result
+                if result is None:
+                    observation = {"error": f"ERP недоступна после 3 попыток: {error}"}
+                    step = ToolStep(tool=call.name, args=call.arguments, error=observation["error"])
+                else:
+                    known.update(find_codes(json.dumps(result, ensure_ascii=False)))
+                    observation = result
+                    step = ToolStep(tool=call.name, args=call.arguments, result=result)
+                    for source in result.get("sources", []):
+                        if source not in sources:
+                            sources.append(source)
             steps.append(step)
             messages.append(tool_message(call, observation))
     lines = [f"Работа прервана: исчерпан лимит в {max_steps} вызовов инструментов."]
