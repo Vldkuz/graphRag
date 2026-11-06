@@ -1,6 +1,7 @@
 """Цикл агента. Требования FR-7, FR-8, FR-9 и FR-10."""
 
 import json
+import re
 from collections.abc import Callable
 
 from assistant.agent.tools import TOOL_SCHEMAS
@@ -10,6 +11,13 @@ from assistant.infra.llm import LLMClient, tool_message
 from assistant.infra.schemas import AgentResult, ToolStep
 
 SYSTEM_PROMPT = "..."
+
+_CODE_LIKE = re.compile(r"[A-Za-zА-Яа-яЁё]+-?\d+[A-Za-zА-Яа-яЁё]*")
+
+
+def _numbers_named(text: str) -> set[str]:
+    return set(re.findall(r"\d+", _CODE_LIKE.sub(" ", text)))
+
 
 def run_agent(
     question: str,
@@ -37,10 +45,18 @@ def run_agent(
     steps, sources = [], []
     known = set(find_codes(question))
     cache = {}
+    numbers = _numbers_named(question)
+    pending_action = None
     while len(steps) < max_steps:
-        resp=llm.chat(messages, tools=TOOL_SCHEMAS)
-        if not resp.tool_calls :
-            return AgentResult(answer=resp.content,steps=steps, sources=sources)
+        resp = llm.chat(messages, tools=TOOL_SCHEMAS)
+        if not resp.tool_calls:
+            return AgentResult(
+                answer=resp.content,
+                steps=steps,
+                sources=sources,
+                needs_confirmation=pending_action is not None,
+                pending_action=pending_action,
+            )
         messages.append(resp.as_message())
         for call in resp.tool_calls:
             if len(steps) >= max_steps:
@@ -55,6 +71,17 @@ def run_agent(
                 observation = {
                     "error": f"номер детали {part} не встречался в вопросе и результатах инструментов, "
                     "сначала найдите его через search_knowledge"
+                }
+                step = ToolStep(tool=call.name, args=call.arguments, error=observation["error"])
+            elif call.name == "create_service_order" and str(call.arguments.get("qty")) not in numbers:
+                observation = {
+                    "error": "количество не названо пользователем, заказ не создан: спросите, сколько штук заказать"
+                }
+                step = ToolStep(tool=call.name, args=call.arguments, error=observation["error"])
+            elif call.name == "create_service_order" and not confirm:
+                pending_action = {"tool": call.name, "args": call.arguments}
+                observation = {
+                    "error": "заказ не создан: нужно подтверждение пользователя, перескажите ему параметры заказа"
                 }
                 step = ToolStep(tool=call.name, args=call.arguments, error=observation["error"])
             else:
@@ -86,4 +113,10 @@ def run_agent(
     if found:
         lines.append("Что удалось узнать:")
         lines += [f"- {step.tool}({step.args}): {step.result}" for step in found]
-    return AgentResult(answer="\n".join(lines), steps=steps, sources=sources)
+    return AgentResult(
+        answer="\n".join(lines),
+        steps=steps,
+        sources=sources,
+        needs_confirmation=pending_action is not None,
+        pending_action=pending_action,
+    )
