@@ -34,10 +34,15 @@ def _schema(name: str, description: str, properties: dict) -> dict:
 
 TOOL_SCHEMAS: list[dict] = [
     _schema(
-        "search_knowledge", "Поиск фактов о модели, ошибке, детали и её актуальной замене.", {"question": QUESTION}
+        "search_knowledge",
+        "Поиск фактов о модели, ошибке, детали, её актуальной замене и поставщике.",
+        {"question": QUESTION},
     ),
     _schema(
-        "summarize_topic", "Обзорный ответ по сводкам: типичные поломки и общие закономерности.", {"question": QUESTION}
+        "summarize_topic",
+        "Обзор по сводкам: типичные поломки, общие закономерности, замены и снятые с производства "
+        "детали по всей линейке оборудования.",
+        {"question": QUESTION},
     ),
     _schema(
         "check_stock",
@@ -83,7 +88,7 @@ def _validated(function: Callable[..., dict], properties: dict) -> Callable[...,
         try:
             return function(*args, **kwargs)
         except ErpNotFound as exc:
-            return {"error": f"Данных в ERP нет: {exc}"}
+            return {"error": f"Данных в ERP нет: {exc}", "refused": True}
         except ErpRejected as exc:
             return {"error": f"ERP отклонила запрос: {exc}"}
         # ErpUnavailable не перехватываем: повторными попытками управляет агент.
