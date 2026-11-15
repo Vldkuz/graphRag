@@ -1,0 +1,1 @@
+{"id": "chatcmpl-618", "object": "chat.completion", "created": 1794173175, "model": "qwen3:4b-instruct-2507-q4_K_M", "system_fingerprint": "fp_ollama", "choices": [{"index": 0, "message": {"role": "assistant", "content": "{\"answer\": \"реле давления\", \"score\": 8}"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 337, "completion_tokens": 16, "total_tokens": 353}}

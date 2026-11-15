@@ -1,0 +1,1 @@
+{"id": "chatcmpl-358", "object": "chat.completion", "created": 1794173206, "model": "qwen3:4b-instruct-2507-q4_K_M", "system_fingerprint": "fp_ollama", "choices": [{"index": 0, "message": {"role": "assistant", "content": "{\"answer\": \"P-2110B\", \"score\": 8}"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 405, "completion_tokens": 19, "total_tokens": 424}}
