@@ -1,0 +1,1 @@
+{"id": "chatcmpl-569", "object": "chat.completion", "created": 1794172008, "model": "qwen3:4b-instruct-2507-q4_K_M", "system_fingerprint": "fp_ollama", "choices": [{"index": 0, "message": {"role": "assistant", "content": "В базе знаний не найдено."}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 476, "completion_tokens": 11, "total_tokens": 487}}
